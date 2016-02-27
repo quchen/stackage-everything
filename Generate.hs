@@ -18,6 +18,14 @@ import           Text.Megaparsec.Text
 ltsVersion :: Text
 ltsVersion = "5.4"
 
+-- | Version of the Cabal package to be generated.
+--
+-- Decoupling this from 'ltsVersion' is useful if something went wrong and
+-- we need a new point release for the generated package.
+generatedPackageVersion :: Text
+generatedPackageVersion = ltsVersion
+
+-- | Source to read the constraints from.
 stackageFilename :: FilePath
 stackageFilename = "lts-5.4"
 
@@ -72,7 +80,7 @@ renderCabalFile
     -> Text
 renderCabalFile packages = T.intercalate "\n"
     [ "name:          stackage-everything"
-    , "version:       " <> ltsVersion
+    , "version:       " <> generatedPackageVersion
     , "synopsis:      Meta-package to depend on all of Stackage LTS " <> ltsVersion <> "."
     , "description:"
     , "    This meta-package depends on the entirety of Stackage."
@@ -107,6 +115,8 @@ renderCabalFile packages = T.intercalate "\n"
     renderPackages (Packages p) = T.intercalate separator (foldMap renderPackage p)
       where
         separator = "\n" <> T.replicate 20 " " <> ", "
+        renderPackage (name, _)
+            | name == "base" = ["base < 127"]
         renderPackage (name, Just version) = [name <> " == " <> version ]
         renderPackage (name, Nothing) = [name]
 
