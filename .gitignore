@@ -1,2 +1,3 @@
 output/*
+!output/src
 .stack-work

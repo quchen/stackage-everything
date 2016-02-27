@@ -104,16 +104,17 @@ renderCabalFile packages = T.intercalate "\n"
     , "bug-reports:   https://github.com/quchen/stackage-everything/issues"
     , "category:      Development"
     , "cabal-version: >=1.10"
+    , "extra-source-files: README.md"
     , ""
     , "source-repository head"
     , "    type:     git"
     , "    location: https://github.com/quchen/stackage-everything"
     , ""
     , "library"
-    , "    exposed-modules:  Stack.Everything.Dummy"
-    , "    hs-source-dirs:   src"
-    , "    default-language: Haskell2010"
-    , "    build-depends:    " <> renderPackages packages ]
+    , "    exposed-modules:    Development.Stack.Everything.Dummy"
+    , "    hs-source-dirs:     src"
+    , "    default-language:   Haskell2010"
+    , "    build-depends:      " <> renderPackages packages ]
 
   where
 
@@ -155,17 +156,13 @@ renderReadme = T.unlines
     , "if you're in an area with poor or no internet connectivity, such as airplanes"
     , "or rural areas."
     , ""
-    , "In order to"
+    , "Use `stack build` with appropriate parameters to make use of it."
+    , "For example, to download all the source files so they can be installed"
+    , "without an internet connection later, run"
     , ""
     , "```bash"
     , "stack build --prefetch --dry-run --only-dependencies"
-    , "```"
-    , ""
-    , "This package is a useful version of [acme-everything], is a joke package, and fails to build due to all the incompatibilities."
-    , ""
-    , ""
-    , "[acme-everything]: http://hackage.haskell.org/package/acme-everything" ]
-
+    , "```" ]
 
 
 renderSetupHs :: Text
