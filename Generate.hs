@@ -36,11 +36,7 @@ main = do
     contents <- T.readFile stackageFilename
     case parse fileP stackageFilename contents of
         Left err -> T.putStrLn "Parse error: " >> print err
-        Right packages -> do
-            T.writeFile "output/stackage-everything.cabal"
-                        (renderCabalFile packages)
-            T.writeFile "output/stack.yaml"
-                        renderStackYaml
+        Right packages -> generateOutputFiles packages
 
 -- | A list of packages and their respective versions.
 newtype Packages = Packages [(Text, Maybe Text)] -- Name/version
@@ -74,6 +70,19 @@ fileP = manyTill anyChar (try (string "constraints:"))
 
 
 
+generateOutputFiles :: Packages -> IO ()
+generateOutputFiles packages = do
+    T.writeFile "output/stackage-everything.cabal"
+                (renderCabalFile packages)
+    T.writeFile "output/stack.yaml"
+                renderStackYaml
+    T.writeFile "output/README.md"
+                renderReadme
+    T.writeFile "output/Setup.hs"
+                renderSetupHs
+
+
+
 -- | Template to generate the .cabal file
 renderCabalFile
     :: Packages
@@ -85,10 +94,7 @@ renderCabalFile packages = T.intercalate "\n"
     , "description:"
     , "    This meta-package depends on the entirety of Stackage."
     , "    ."
-    , "    The intended use case is to make Stackage available offline"
-    , "    easily, by running"
-    , "    ."
-    , "    > stack build --prefetch --dry-run --only-dependencies"
+    , "    See README.md for further details."
     , ""
     , "license:       PublicDomain"
     , "author:        David Luposchainsky <dluposchainsky(λ)gmail.com>"
@@ -135,3 +141,34 @@ renderStackYaml = T.intercalate "\n"
     , "flags: {}"
     , ""
     , "extra-package-dbs: []" ]
+
+
+
+renderReadme :: Text
+renderReadme = T.unlines
+    [ "stackage-everything"
+    , "-------------------"
+    , ""
+    , "This meta package depends on the entirety of Stackage."
+    , ""
+    , "The purpose of this is making Stackage available offline, which can be useful"
+    , "if you're in an area with poor or no internet connectivity, such as airplanes"
+    , "or rural areas."
+    , ""
+    , "In order to"
+    , ""
+    , "```bash"
+    , "stack build --prefetch --dry-run --only-dependencies"
+    , "```"
+    , ""
+    , "This package is a useful version of [acme-everything], is a joke package, and fails to build due to all the incompatibilities."
+    , ""
+    , ""
+    , "[acme-everything]: http://hackage.haskell.org/package/acme-everything" ]
+
+
+
+renderSetupHs :: Text
+renderSetupHs = T.unlines
+    [ "import Distribution.Simple"
+    , "main = defaultMain" ]
