@@ -17,42 +17,30 @@ import           Text.Megaparsec.Text
 
 
 
--- ############################################################################
--- CONFIGURATION
--- ############################################################################
-
--- | Stackage LTS version to target.
-ltsVersion :: Text
-ltsVersion = "5.4"
-
--- | Version of the Cabal package to be generated.
---
--- Decoupling this from 'ltsVersion' is useful if something went wrong and
--- we need a new point release for the generated package.
-generatedPackageVersion :: Text
-generatedPackageVersion = ltsVersion
-
--- | Source to read the constraints from.
-stackageFilename :: FilePath
-stackageFilename = "input/stackage-lts-5.4.cabal"
-
-
-
--- ############################################################################
--- HERE BE DRAGONS
--- ############################################################################
-
 newtype Name = Name Text deriving (Eq, Ord, Show)
 data Version = Version Text | NoVersion deriving (Eq, Ord, Show)
 
 main :: IO ()
-main = do
+main = generatePackage "5.4"
+                       "5.4"
+                       "input/stackage-lts-5.4.cabal"
+
+generatePackage
+    :: Text     -- ^ Stackage LTS version to target.
+    -> Text     -- ^ Version of the Cabal package to be generated.
+                --
+                -- Decoupling this from the LTS version parameter is useful if
+                -- something went wrong and we need a new point release for the
+                -- generated package.
+    -> FilePath -- ^ Source to read the constraints from.
+    -> IO ()
+generatePackage ltsVersion generatedPackageVersion stackageFilename = do
     putStrLn "Reading input file"
     contents <- T.readFile stackageFilename
     putStrLn "Parsing input"
     case parse cabalConstraintFileP stackageFilename contents of
         Left err -> T.putStrLn "Parse error: " >> print err
-        Right packages -> generateOutputFiles packages
+        Right packages -> generateOutputFiles packages ltsVersion generatedPackageVersion
 
 -- | A list of packages and their respective versions.
 newtype Packages = Packages [(Name, Version)] -- Name/version
@@ -89,13 +77,13 @@ cabalConstraintFileP = manyTill anyChar (try (string "constraints:"))
 
 
 
-generateOutputFiles :: Packages -> IO ()
-generateOutputFiles packages = do
+generateOutputFiles :: Packages -> Text -> Text -> IO ()
+generateOutputFiles packages ltsVersion generatedPackageVersion = do
     putStrLn "Generating output files"
     T.writeFile "output/stackage-everything.cabal"
-                (renderCabalFile packages)
+                (renderCabalFile packages ltsVersion generatedPackageVersion)
     T.writeFile "output/stack.yaml"
-                renderStackYaml
+                (renderStackYaml ltsVersion)
     T.writeFile "output/README.md"
                 renderReadme
     T.writeFile "output/Setup.hs"
@@ -107,7 +95,9 @@ generateOutputFiles packages = do
 renderCabalFile
     :: Packages
     -> Text
-renderCabalFile packages = T.intercalate "\n"
+    -> Text
+    -> Text
+renderCabalFile packages ltsVersion generatedPackageVersion = T.intercalate "\n"
     [ "name:          stackage-everything"
     , "version:       " <> generatedPackageVersion
     , "synopsis:      Meta-package to depend on all of Stackage LTS " <> ltsVersion <> "."
@@ -141,7 +131,7 @@ renderCabalFile packages = T.intercalate "\n"
     renderPackages :: Packages -> Text
     renderPackages (Packages p) = T.intercalate separator (foldMap renderPackage p)
       where
-        separator = "\n" <> T.replicate 20 " " <> ", "
+        separator = "\n" <> T.replicate 22 " " <> ", "
         renderPackage (Name n, _)
             | n == "base" = ["base < 127"] -- To make `cabal check` happy
         renderPackage (Name n, Version v) = [n <> " == " <> v ]
@@ -150,8 +140,8 @@ renderCabalFile packages = T.intercalate "\n"
 
 
 -- | Template to generate the stack.yaml file
-renderStackYaml :: Text
-renderStackYaml = T.intercalate "\n"
+renderStackYaml :: Text -> Text
+renderStackYaml ltsVersion = T.intercalate "\n"
     [ "resolver: lts-" <> ltsVersion
     , ""
     , "packages:"
