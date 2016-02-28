@@ -6,6 +6,8 @@
 
 module Main (main) where
 
+
+
 import           Data.Monoid
 import           Data.Text            (Text)
 import qualified Data.Text            as T
@@ -15,6 +17,11 @@ import           Text.Megaparsec.Text
 
 
 
+-- ############################################################################
+-- CONFIGURATION
+-- ############################################################################
+
+-- | Stackage LTS version to target.
 ltsVersion :: Text
 ltsVersion = "5.4"
 
@@ -27,23 +34,33 @@ generatedPackageVersion = ltsVersion
 
 -- | Source to read the constraints from.
 stackageFilename :: FilePath
-stackageFilename = "lts-5.4"
+stackageFilename = "input/stackage-lts-5.4.cabal"
 
 
+
+-- ############################################################################
+-- HERE BE DRAGONS
+-- ############################################################################
+
+newtype Name = Name Text deriving (Eq, Ord, Show)
+data Version = Version Text | NoVersion deriving (Eq, Ord, Show)
 
 main :: IO ()
 main = do
+    putStrLn "Reading input file"
     contents <- T.readFile stackageFilename
-    case parse fileP stackageFilename contents of
+    putStrLn "Parsing input"
+    case parse cabalConstraintFileP stackageFilename contents of
         Left err -> T.putStrLn "Parse error: " >> print err
         Right packages -> generateOutputFiles packages
 
 -- | A list of packages and their respective versions.
-newtype Packages = Packages [(Text, Maybe Text)] -- Name/version
+newtype Packages = Packages [(Name, Version)] -- Name/version
     deriving (Eq, Ord, Show)
 
-fileP :: Parser Packages
-fileP = manyTill anyChar (try (string "constraints:"))
+-- | Ad-hoc parser for handling Stackage provided Cabal constraint files.
+cabalConstraintFileP :: Parser Packages
+cabalConstraintFileP = manyTill anyChar (try (string "constraints:"))
      *> space
      *> packagesP
      <* manyTill anyChar eof
@@ -55,16 +72,18 @@ fileP = manyTill anyChar (try (string "constraints:"))
       where
         comma = char ',' *> space
 
-    packageP :: Parser (Text, Maybe Text)
+    packageP :: Parser (Name, Version)
     packageP = do
-        name <- T.pack <$> some (alphaNumChar <|> char '-')
+        name <- do n <- some (alphaNumChar <|> char '-')
+                   (pure . Name . T.pack) n
         space
-        let versionNumber = do
-                _ <- string "=="
-                v <- some (digitChar <|> char '.')
-                pure (Just (T.pack v) )
-            merelyInstalled = Nothing <$ string "installed"
-        version <- versionNumber <|> merelyInstalled
+        version <- do
+            let versionNumber = do
+                    _ <- string "=="
+                    v <- some (digitChar <|> char '.')
+                    pure (Version (T.pack v) )
+                merelyInstalled = NoVersion <$ string "installed"
+            versionNumber <|> merelyInstalled
         space
         pure (name, version)
 
@@ -72,6 +91,7 @@ fileP = manyTill anyChar (try (string "constraints:"))
 
 generateOutputFiles :: Packages -> IO ()
 generateOutputFiles packages = do
+    putStrLn "Generating output files"
     T.writeFile "output/stackage-everything.cabal"
                 (renderCabalFile packages)
     T.writeFile "output/stack.yaml"
@@ -122,10 +142,10 @@ renderCabalFile packages = T.intercalate "\n"
     renderPackages (Packages p) = T.intercalate separator (foldMap renderPackage p)
       where
         separator = "\n" <> T.replicate 20 " " <> ", "
-        renderPackage (name, _)
-            | name == "base" = ["base < 127"]
-        renderPackage (name, Just version) = [name <> " == " <> version ]
-        renderPackage (name, Nothing) = [name]
+        renderPackage (Name n, _)
+            | n == "base" = ["base < 127"] -- To make `cabal check` happy
+        renderPackage (Name n, Version v) = [n <> " == " <> v ]
+        renderPackage (Name n, NoVersion) = [n]
 
 
 

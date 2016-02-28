@@ -1,7 +1,8 @@
 Stackage-Everything generator
 =============================
 
-This meta-meta-package generates packages to depend on the entirety of Stackage packages of a certain LTS release.
+This meta-meta-package generates packages to depend on the entirety of
+Stackage packages of a certain LTS release.
 
 ```bash
 # Script must be run from "."!
