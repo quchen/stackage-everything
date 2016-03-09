@@ -43,7 +43,7 @@ generatePackage ltsVersion generatedPackageVersion stackageFilename = do
         Right packages -> generateOutputFiles packages ltsVersion generatedPackageVersion
 
 -- | A list of packages and their respective versions.
-newtype Packages = Packages [(Name, Version)] -- Name/version
+newtype Packages = Packages [(Name, Version)]
     deriving (Eq, Ord, Show)
 
 -- | Ad-hoc parser for handling Stackage provided Cabal constraint files.
@@ -92,11 +92,7 @@ generateOutputFiles packages ltsVersion generatedPackageVersion = do
 
 
 -- | Template to generate the .cabal file
-renderCabalFile
-    :: Packages
-    -> Text
-    -> Text
-    -> Text
+renderCabalFile :: Packages -> Text -> Text -> Text
 renderCabalFile packages ltsVersion generatedPackageVersion = T.intercalate "\n"
     [ "name:          stackage-everything"
     , "version:       " <> generatedPackageVersion
