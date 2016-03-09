@@ -21,9 +21,9 @@ newtype Name = Name Text deriving (Eq, Ord, Show)
 data Version = Version Text | NoVersion deriving (Eq, Ord, Show)
 
 main :: IO ()
-main = generatePackage "5.4"
-                       "5.4"
-                       "input/stackage-lts-5.4.cabal"
+main = generatePackage "5.6"
+                       "5.6"
+                       "input/stackage-lts-5.6.cabal"
 
 generatePackage
     :: Text     -- ^ Stackage LTS version to target.
