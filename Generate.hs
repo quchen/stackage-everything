@@ -117,17 +117,22 @@ renderCabalFile packages ltsVersion generatedPackageVersion = T.intercalate "\n"
     , "    location: https://github.com/quchen/stackage-everything"
     , ""
     , "library"
-    , "    exposed-modules:    Development.Stack.Everything.Dummy"
-    , "    hs-source-dirs:     src"
-    , "    default-language:   Haskell2010"
-    , "    build-depends:      " <> renderPackages packages ]
+    , "    exposed-modules:  Development.Stack.Everything.Dummy"
+    , "    hs-source-dirs:   src"
+    , "    default-language: Haskell2010"
+    , buildDepends packages ]
 
   where
 
-    renderPackages :: Packages -> Text
-    renderPackages (Packages p) = T.intercalate separator (foldMap renderPackage p)
+    buildDepends :: Packages -> Text
+    buildDepends (Packages p) =
+        buildDependsStr <> T.intercalate separator (foldMap renderPackage p)
       where
-        separator = "\n" <> T.replicate 22 " " <> ", "
+        buildDependsStr = "    build-depends:    "
+        separator = mconcat
+            [ "\n"
+            , T.replicate (T.length buildDependsStr - T.length ", ") " "
+            , ", " ]
         renderPackage (Name n, _)
             | n == "base" = ["base < 127"] -- To make `cabal check` happy
         renderPackage (Name n, Version v) = [n <> " == " <> v ]
