@@ -3,8 +3,13 @@
     --package megaparsec
     --package text
     --package containers
+    --package wreq
+    --package lens
+    --package bytestring
+    --package optparse-generic
 -}
 
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wall #-}
 
@@ -12,10 +17,18 @@ module Main (main) where
 
 
 
+import           Control.Lens
+import qualified Data.ByteString.Lazy as BSL
+import           Data.Foldable
 import           Data.Monoid
 import           Data.Text            (Text)
 import qualified Data.Text            as T
+import qualified Data.Text.Encoding   as T
 import qualified Data.Text.IO         as T
+import           Network.Wreq
+import           System.Environment
+import           System.Exit
+import           System.IO
 import           Text.Megaparsec
 import           Text.Megaparsec.Text
 
@@ -25,26 +38,35 @@ newtype Name = Name Text deriving (Eq, Ord, Show)
 data Version = Version Text | NoVersion deriving (Eq, Ord, Show)
 
 main :: IO ()
-main = generatePackage "10.5"
-                       "10.5"
-                       "input/stackage-lts-10.5.cabal"
+main = do
+    args <- getArgs
+    case args of
+        ltsFlag : ltsVersion : [] | ltsFlag == "--lts"
+            -> generateScript (T.pack ltsVersion)
+        _other -> do
+            T.hPutStrLn stderr "Usage: ./Generate.hs --lts <version>"
+            T.hPutStrLn stderr "Version: e.g. 10.5 for LTS-10.5"
+            exitWith (ExitFailure 1)
 
-generatePackage
+downloadCabalConstraints :: Text -> IO Text
+downloadCabalConstraints lts = do
+    response <- get ("https://www.stackage.org/lts-" ++ T.unpack lts ++ "/cabal.config")
+    pure (T.decodeUtf8 (BSL.toStrict (view responseBody response)))
+
+generateScript
     :: Text     -- ^ Stackage LTS version to target.
-    -> Text     -- ^ Version of the Cabal package to be generated.
-                --
-                -- Decoupling this from the LTS version parameter is useful if
-                -- something went wrong and we need a new point release for the
-                -- generated package.
-    -> FilePath -- ^ Source to read the constraints from.
     -> IO ()
-generatePackage ltsVersion generatedPackageVersion stackageFilename = do
-    putStrLn "Reading input file"
-    contents <- T.readFile stackageFilename
-    putStrLn "Parsing input"
-    case parse cabalConstraintFileP stackageFilename contents of
+generateScript ltsVersion = do
+    T.hPutStrLn stderr ("Downloading constraints for LTS-" <> ltsVersion)
+    contents <- downloadCabalConstraints ltsVersion
+    T.hPutStrLn stderr "Parsing constraints file"
+    case parse cabalConstraintFileP "" contents of
         Left err -> T.putStrLn "Parse error: " >> print err
-        Right packages -> generateOutputFiles packages ltsVersion generatedPackageVersion
+        Right (Packages packages) -> do
+            T.putStrLn "#!/usr/bin/env bash"
+            T.putStrLn ""
+            for_ packages (\(Name pkgName, _pkgVersion) ->
+                T.putStrLn ("stack build --dry-run --prefetch --resolver lts-" <> ltsVersion <> " " <> pkgName) )
 
 -- | A list of packages and their respective versions.
 newtype Packages = Packages [(Name, Version)]
@@ -78,109 +100,3 @@ cabalConstraintFileP = manyTill anyChar (try (string "constraints:"))
             versionNumber <|> merelyInstalled
         space
         pure (name, version)
-
-
-
-generateOutputFiles :: Packages -> Text -> Text -> IO ()
-generateOutputFiles packages ltsVersion generatedPackageVersion = do
-    putStrLn "Generating output files"
-    T.writeFile "output/stackage-everything.cabal"
-                (renderCabalFile packages ltsVersion generatedPackageVersion)
-    T.writeFile "output/stack.yaml"
-                (renderStackYaml ltsVersion)
-    T.writeFile "output/README.md"
-                renderReadme
-    T.writeFile "output/Setup.hs"
-                renderSetupHs
-
-
-
--- | Template to generate the .cabal file
-renderCabalFile :: Packages -> Text -> Text -> Text
-renderCabalFile packages ltsVersion generatedPackageVersion = T.intercalate "\n"
-    [ "name:          stackage-everything"
-    , "version:       " <> generatedPackageVersion
-    , "synopsis:      Meta-package to depend on all of Stackage LTS " <> ltsVersion <> "."
-    , "description:"
-    , "    This meta-package depends on the entirety of Stackage."
-    , "    ."
-    , "    See README.md for further details."
-    , ""
-    , "license:       PublicDomain"
-    , "author:        David Luposchainsky <dluposchainsky(λ)gmail.com>"
-    , "maintainer:    David Luposchainsky <dluposchainsky(λ)gmail.com>"
-    , "build-type:    Simple"
-    , "homepage:      https://github.com/quchen/stackage-everything"
-    , "bug-reports:   https://github.com/quchen/stackage-everything/issues"
-    , "category:      Development"
-    , "cabal-version: >=1.10"
-    , "extra-source-files: README.md"
-    , ""
-    , "source-repository head"
-    , "    type:     git"
-    , "    location: https://github.com/quchen/stackage-everything"
-    , ""
-    , "library"
-    , "    exposed-modules:  Development.Stack.Everything.Dummy"
-    , "    hs-source-dirs:   src"
-    , "    default-language: Haskell2010"
-    , buildDepends packages ]
-
-  where
-
-    buildDepends :: Packages -> Text
-    buildDepends (Packages p) =
-        buildDependsStr <> T.intercalate separator (foldMap renderPackage p)
-      where
-        buildDependsStr = "    build-depends:    "
-        separator = mconcat
-            [ "\n"
-            , T.replicate (T.length buildDependsStr - T.length ", ") " "
-            , ", " ]
-        renderPackage (Name n, _)
-            | n == "base" = ["base < 127"] -- To make `cabal check` happy
-        renderPackage (Name n, Version v) = [n <> " == " <> v ]
-        renderPackage (Name n, NoVersion) = [n]
-
-
-
--- | Template to generate the stack.yaml file
-renderStackYaml :: Text -> Text
-renderStackYaml ltsVersion = T.intercalate "\n"
-    [ "resolver: lts-" <> ltsVersion
-    , ""
-    , "packages:"
-    , "    - '.'"
-    , ""
-    , "extra-deps: []"
-    , ""
-    , "flags: {}"
-    , ""
-    , "extra-package-dbs: []" ]
-
-
-
-renderReadme :: Text
-renderReadme = T.unlines
-    [ "stackage-everything"
-    , "-------------------"
-    , ""
-    , "This meta package depends on the entirety of Stackage."
-    , ""
-    , "The purpose of this is making Stackage available offline, which can be useful"
-    , "if you're in an area with poor or no internet connectivity, such as airplanes"
-    , "or rural areas."
-    , ""
-    , "Use `stack build` with appropriate parameters to make use of it."
-    , "For example, to download all the source files so they can be installed"
-    , "without an internet connection later, run"
-    , ""
-    , "```bash"
-    , "stack build --prefetch --dry-run --only-dependencies"
-    , "```" ]
-
-
-renderSetupHs :: Text
-renderSetupHs = T.unlines
-    [ "import Distribution.Simple"
-    , "main = defaultMain" ]
