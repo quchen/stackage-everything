@@ -65,6 +65,8 @@ generateScript ltsVersion = do
         Right (Packages packages) -> do
             T.putStrLn "#!/usr/bin/env bash"
             T.putStrLn ""
+            T.putStrLn "set -veuo pipefail"
+            T.putStrLn ""
             for_ packages (\(Name pkgName, _pkgVersion) ->
                 T.putStrLn ("stack build --dry-run --prefetch --resolver lts-" <> ltsVersion <> " " <> pkgName) )
 
