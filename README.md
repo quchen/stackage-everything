@@ -1,14 +1,18 @@
 Stackage-Everything generator
 =============================
 
-tl;dr: »I want Stackage on an airplane«
+tl;dr: »I want Stackage on an airplane and I have only 3 minutes until takeoff«
 
-This small script generates a script to prefetch all the sources of a Stackage
-LTS release, so they can later be installed (including documentation) even when
-no internet connection is available. So if you’ve got a long flight ahead of
-you, or a weekend with your Granny in Siberia, or a dive into the Mariana
-Trench, or even worse – a trip through the German countryside by train – this is
-for you.
+This small script generates a script to download all the sources of a Stackage
+LTS release, so they can later be built/installed (including documentation) even
+when no internet connection is available.
+
+A full download takes only a couple of minutes and around 60 megabytes of
+traffic at the time of writing this.
+
+So if you’ve got a long flight ahead of you, or a weekend with your Granny in
+Siberia, or a dive into the Mariana Trench, or even worse – a trip through the
+German countryside by train – this is for you.
 
 Usage
 -----

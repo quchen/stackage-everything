@@ -64,7 +64,7 @@ main = do
             exitWith (ExitFailure 1)
 
 parseLtsVersion :: Text -> Either Text LtsVersion
-parseLtsVersion input = case parse version "<LTS version parameter>" input of
+parseLtsVersion input = case parse version "<LTS version>" input of
     Left err -> Left (T.pack (parseErrorPretty err))
     Right r  -> Right r
   where
