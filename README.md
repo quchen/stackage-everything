@@ -1,10 +1,14 @@
 Stackage-Everything generator
 =============================
 
+tl;dr: »I want Stackage on an airplanes
+
 This meta-meta-package generates packages to depend on the entirety of Stackage
-packages of a certain LTS release. This is useful in conjunction with Stack’s
-package preloading feature: get all the sources of Stackage before boarding a
-plane, and everything’s available even if there is no internet.
+of a certain LTS release. This is useful in conjunction with Stack’s package
+preloading feature: prefetch all the sources of Stackage before boarding a
+plane, and everything’s available even if there is no internet. Required
+packages, or even just their documentation, can then be built without being
+online.
 
 Usage
 -----
@@ -12,20 +16,16 @@ Usage
 First, get the Cabal config of the desired Stackage release.
 
 ```bash
-# Script must be run from "."!
 wget -O "lts-10.5" "https://www.stackage.org/lts-10.5/cabal.config"
 ```
 
-Next, adjust the parameters at the top of `Generate.hs` to your likings. Note
-that the script assumes that the downloaded cabal.config is in its working
-directory (because I was lazy when I wrote it).
+Next, adjust the parameters in `main` of `Generate.hs` to your likings, like
+which LTS to base the result on, and where the `cabal.config` file is located
+(relative to the script).
 
 Now run `./Generate.hs`. The result will be put into the `output` directory,
-where you can od various things with it.
+where you can od various things with it, for example prefetch all sources,
 
 ```bash
-set -euo pipefail
-./Generate.hs
-( cd output && cabal check && cabal sdist ) # Build proper package
-( cd output && stack build --dry-run --prefetch ) # Download all sources
+( cd output && stack build --dry-run --prefetch )
 ```
