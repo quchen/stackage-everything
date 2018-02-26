@@ -1,5 +1,9 @@
 #!/usr/bin/env stack
--- stack --resolver lts-5.0 --install-ghc runghc --package megaparsec --package text --package containers
+{- stack --resolver lts-9.0 --install-ghc runghc
+    --package megaparsec
+    --package text
+    --package containers
+-}
 
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wall #-}
@@ -21,9 +25,9 @@ newtype Name = Name Text deriving (Eq, Ord, Show)
 data Version = Version Text | NoVersion deriving (Eq, Ord, Show)
 
 main :: IO ()
-main = generatePackage "5.6"
-                       "5.6"
-                       "input/stackage-lts-5.6.cabal"
+main = generatePackage "10.5"
+                       "10.5"
+                       "input/stackage-lts-10.5.cabal"
 
 generatePackage
     :: Text     -- ^ Stackage LTS version to target.
