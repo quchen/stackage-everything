@@ -51,7 +51,7 @@ main :: IO ()
 main = do
     args <- getArgs
     case args of
-        ltsFlag : ltsVersion : [] | ltsFlag == "--lts"
+        ltsFlag : ltsVersion : _ | ltsFlag == "--lts"
             -> case parseLtsVersion (T.pack ltsVersion) of
                 Left err -> do
                     T.hPutStrLn stderr "Invalid version specified"
